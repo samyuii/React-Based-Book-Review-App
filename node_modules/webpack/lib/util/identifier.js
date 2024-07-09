@@ -11,10 +11,14 @@ const SEGMENTS_SPLIT_REGEXP = /([|!])/;
 const WINDOWS_PATH_SEPARATOR_REGEXP = /\\/g;
 
 /**
- * @typedef {Object} MakeRelativePathsCache
+ * @typedef {object} MakeRelativePathsCache
  * @property {Map<string, Map<string, string>>=} relativePaths
  */
 
+/**
+ * @param {string} relativePath relative path
+ * @returns {string} request
+ */
 const relativePathToRequest = relativePath => {
 	if (relativePath === "") return "./.";
 	if (relativePath === "..") return "../.";
@@ -96,7 +100,7 @@ const makeCacheable = realFn => {
 
 	/**
 	 * @param {string} str the path with query and fragment
-	 * @param {Object=} associatedObjectForCache an object to which the cache will be attached
+	 * @param {object=} associatedObjectForCache an object to which the cache will be attached
 	 * @returns {ParsedResource} parsed parts
 	 */
 	const fn = (str, associatedObjectForCache) => {
@@ -130,7 +134,7 @@ const makeCacheableWithContext = fn => {
 	/**
 	 * @param {string} context context used to create relative path
 	 * @param {string} identifier identifier used to create relative path
-	 * @param {Object=} associatedObjectForCache an object to which the cache will be attached
+	 * @param {object=} associatedObjectForCache an object to which the cache will be attached
 	 * @returns {string} the returned relative path
 	 */
 	const cachedFn = (context, identifier, associatedObjectForCache) => {
@@ -160,7 +164,7 @@ const makeCacheableWithContext = fn => {
 	};
 
 	/**
-	 * @param {Object=} associatedObjectForCache an object to which the cache will be attached
+	 * @param {object=} associatedObjectForCache an object to which the cache will be attached
 	 * @returns {function(string, string): string} cached function
 	 */
 	cachedFn.bindCache = associatedObjectForCache => {
@@ -203,7 +207,7 @@ const makeCacheableWithContext = fn => {
 
 	/**
 	 * @param {string} context context used to create relative path
-	 * @param {Object=} associatedObjectForCache an object to which the cache will be attached
+	 * @param {object=} associatedObjectForCache an object to which the cache will be attached
 	 * @returns {function(string): string} cached function
 	 */
 	cachedFn.bindContextCache = (context, associatedObjectForCache) => {
@@ -372,6 +376,6 @@ exports.getUndoPath = (filename, outputPath, enforceRelative) => {
 	return depth > 0
 		? `${"../".repeat(depth)}${append}`
 		: enforceRelative
-		? `./${append}`
-		: append;
+			? `./${append}`
+			: append;
 };

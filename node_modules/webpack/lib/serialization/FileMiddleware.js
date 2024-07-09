@@ -60,26 +60,26 @@ const DECOMPRESSION_CHUNK_SIZE = 100 * 1024 * 1024;
 const writeUInt64LE = Buffer.prototype.writeBigUInt64LE
 	? (buf, value, offset) => {
 			buf.writeBigUInt64LE(BigInt(value), offset);
-	  }
+		}
 	: (buf, value, offset) => {
 			const low = value % 0x100000000;
 			const high = (value - low) / 0x100000000;
 			buf.writeUInt32LE(low, offset);
 			buf.writeUInt32LE(high, offset + 4);
-	  };
+		};
 
 const readUInt64LE = Buffer.prototype.readBigUInt64LE
 	? (buf, offset) => {
 			return Number(buf.readBigUInt64LE(offset));
-	  }
+		}
 	: (buf, offset) => {
 			const low = buf.readUInt32LE(offset);
 			const high = buf.readUInt32LE(offset + 4);
 			return high * 0x100000000 + low;
-	  };
+		};
 
 /**
- * @typedef {Object} SerializeResult
+ * @typedef {object} SerializeResult
  * @property {string | false} name
  * @property {number} size
  * @property {Promise=} backgroundJob
@@ -181,6 +181,7 @@ const serialize = async (
 		SerializerMiddleware.setLazySerializedValue(lazy, buf);
 		return buf;
 	});
+	/** @type {number[]} */
 	const lengths = [];
 	for (const item of resolvedData) {
 		if (Array.isArray(item)) {
@@ -203,6 +204,7 @@ const serialize = async (
 	for (let i = 0; i < lengths.length; i++) {
 		header.writeInt32LE(lengths[i], 8 + i * 4);
 	}
+	/** @type {Buffer[]} */
 	const buf = [header];
 	for (const item of resolvedData) {
 		if (Array.isArray(item)) {
@@ -247,6 +249,9 @@ const deserialize = async (middleware, name, readFile) => {
 		contentItemLength = contentItem.length;
 		contentPosition = 0;
 	};
+	/**
+	 * @param {number} n number of bytes to ensure
+	 */
 	const ensureData = n => {
 		if (contentPosition === contentItemLength) {
 			nextContent();
@@ -274,18 +279,28 @@ const deserialize = async (middleware, name, readFile) => {
 			contentPosition = 0;
 		}
 	};
+	/**
+	 * @returns {number} value value
+	 */
 	const readUInt32LE = () => {
 		ensureData(4);
 		const value = contentItem.readUInt32LE(contentPosition);
 		contentPosition += 4;
 		return value;
 	};
+	/**
+	 * @returns {number} value value
+	 */
 	const readInt32LE = () => {
 		ensureData(4);
 		const value = contentItem.readInt32LE(contentPosition);
 		contentPosition += 4;
 		return value;
 	};
+	/**
+	 * @param {number} l length
+	 * @returns {Buffer} buffer
+	 */
 	const readSlice = l => {
 		ensureData(l);
 		if (contentPosition === 0 && contentItemLength === l) {
@@ -412,7 +427,7 @@ class FileMiddleware extends SerializerMiddleware {
 	}
 	/**
 	 * @param {DeserializedType} data data
-	 * @param {Object} context context object
+	 * @param {object} context context object
 	 * @returns {SerializedType|Promise<SerializedType>} serialized data
 	 */
 	serialize(data, context) {
@@ -540,7 +555,7 @@ class FileMiddleware extends SerializerMiddleware {
 
 	/**
 	 * @param {SerializedType} data data
-	 * @param {Object} context context object
+	 * @param {object} context context object
 	 * @returns {DeserializedType|Promise<DeserializedType>} deserialized data
 	 */
 	deserialize(data, context) {
@@ -556,9 +571,12 @@ class FileMiddleware extends SerializerMiddleware {
 						return;
 					}
 					let remaining = /** @type {number} */ (stats.size);
+					/** @type {Buffer | undefined} */
 					let currentBuffer;
+					/** @type {number | undefined} */
 					let currentBufferUsed;
 					const buf = [];
+					/** @type {import("zlib").Zlib & import("stream").Transform | undefined} */
 					let decompression;
 					if (file.endsWith(".gz")) {
 						decompression = createGunzip({

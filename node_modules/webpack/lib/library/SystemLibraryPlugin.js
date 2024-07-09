@@ -23,12 +23,12 @@ const AbstractLibraryPlugin = require("./AbstractLibraryPlugin");
 /** @template T @typedef {import("./AbstractLibraryPlugin").LibraryContext<T>} LibraryContext<T> */
 
 /**
- * @typedef {Object} SystemLibraryPluginOptions
+ * @typedef {object} SystemLibraryPluginOptions
  * @property {LibraryType} type
  */
 
 /**
- * @typedef {Object} SystemLibraryPluginParsed
+ * @typedef {object} SystemLibraryPluginParsed
  * @property {string} name
  */
 
@@ -59,7 +59,7 @@ class SystemLibraryPlugin extends AbstractLibraryPlugin {
 			);
 		}
 		return {
-			name: /** @type {string=} */ (name)
+			name: /** @type {string} */ (name)
 		};
 	}
 
@@ -106,6 +106,7 @@ class SystemLibraryPlugin extends AbstractLibraryPlugin {
 			.join("\n");
 
 		// Define __esModule flag on all internal variables and helpers
+		/** @type {string[]} */
 		const externalVarInitialization = [];
 
 		// The system.register format requires an array of setter functions for externals.
@@ -186,7 +187,7 @@ class SystemLibraryPlugin extends AbstractLibraryPlugin {
 								.join(",\n")
 						),
 						"],"
-				  ]);
+					]);
 
 		return new ConcatSource(
 			Template.asString([

@@ -53,7 +53,7 @@ class AsyncQueueEntry {
  */
 class AsyncQueue {
 	/**
-	 * @param {Object} options options object
+	 * @param {object} options options object
 	 * @param {string=} options.name name of the queue
 	 * @param {number=} options.parallelism how many items should be processed at once
 	 * @param {AsyncQueue<any, any, any>=} options.parent parent queue, which will have priority over this queue and with shared parallelism
@@ -70,7 +70,7 @@ class AsyncQueue {
 		this._entries = new Map();
 		/** @type {ArrayQueue<AsyncQueueEntry<T, K, R>>} */
 		this._queued = new ArrayQueue();
-		/** @type {AsyncQueue<any, any, any>[]} */
+		/** @type {AsyncQueue<any, any, any>[] | undefined} */
 		this._children = undefined;
 		this._activeTasks = 0;
 		this._willEnsureProcessing = false;
@@ -159,7 +159,9 @@ class AsyncQueue {
 	 */
 	invalidate(item) {
 		const key = this._getKey(item);
-		const entry = this._entries.get(key);
+		const entry =
+			/** @type {AsyncQueueEntry<T, K, R>} */
+			(this._entries.get(key));
 		this._entries.delete(key);
 		if (entry.state === QUEUED_STATE) {
 			this._queued.delete(entry);

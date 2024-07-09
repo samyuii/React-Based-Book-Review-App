@@ -10,7 +10,7 @@
 [![node][node]][node-url]
 [![tests][tests]][tests-url]
 [![coverage][cover]][cover-url]
-[![chat][chat]][chat-url]
+[![discussion][discussion]][discussion-url]
 [![size][size]][size-url]
 
 # mini-css-extract-plugin
@@ -407,6 +407,7 @@ module.exports = {
 - **[`publicPath`](#publicPath)**
 - **[`emit`](#emit)**
 - **[`esModule`](#esModule)**
+- **[`defaultExport`](#defaultExport)**
 
 #### `publicPath`
 
@@ -549,6 +550,60 @@ module.exports = {
 };
 ```
 
+#### `defaultExport`
+
+Type:
+
+```ts
+type defaultExport = boolean;
+```
+
+Default: `false`
+
+> **Note**
+>
+> This option will work only when you set `namedExport` to `true` in `css-loader`
+
+By default, `mini-css-extract-plugin` generates JS modules based on the `esModule` and `namedExport` options in `css-loader`.
+Using the `esModule` and `namedExport` options will allow you to better optimize your code.
+If you set `esModule: true` and `namedExport: true` for `css-loader` `mini-css-extract-plugin` will generate **only** a named export.
+Our official recommendation is to use only named export for better future compatibility.
+But for some applications, it is not easy to quickly rewrite the code from the default export to a named export.
+
+In case you need both default and named exports, you can enable this option:
+
+**webpack.config.js**
+
+```js
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+
+module.exports = {
+  plugins: [new MiniCssExtractPlugin()],
+  module: {
+    rules: [
+      {
+        test: /\.css$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              defaultExport: true,
+            },
+          },
+          {
+            loader: "css-loader",
+            esModule: true,
+            modules: {
+              namedExport: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+```
+
 ## Examples
 
 ### Recommended
@@ -569,6 +624,8 @@ module.exports = {
   module: {
     rules: [
       {
+        // If you enable `experiments.css` or `experiments.futureDefaults`, please uncomment line below
+        // type: "javascript/auto",
         test: /\.(sa|sc|c)ss$/,
         use: [
           devMode ? "style-loader" : MiniCssExtractPlugin.loader,
@@ -1192,6 +1249,27 @@ If you'd like to extract the media queries from the extracted CSS (so mobile use
 - [Media Query Plugin](https://github.com/SassNinja/media-query-plugin)
 - [Media Query Splitting Plugin](https://github.com/mike-diamond/media-query-splitting-plugin)
 
+## Hooks
+
+The mini-css-extract-plugin provides hooks to extend it to your needs.
+
+### beforeTagInsert
+
+`SyncWaterfallHook`
+
+Called before inject the insert code for link tag. Should return a string
+
+```javascript
+MiniCssExtractPlugin.getCompilationHooks(compilation).beforeTagInsert.tap(
+  "changeHref",
+  (source, varNames) =>
+    Template.asString([
+      source,
+      `${varNames.tag}.setAttribute("href", "https://github.com/webpack-contrib/mini-css-extract-plugin");`,
+    ])
+);
+```
+
 ## Contributing
 
 Please take a moment to read our contributing guidelines if you haven't yet done so.
@@ -1210,7 +1288,7 @@ Please take a moment to read our contributing guidelines if you haven't yet done
 [tests-url]: https://github.com/webpack-contrib/mini-css-extract-plugin/actions
 [cover]: https://codecov.io/gh/webpack-contrib/mini-css-extract-plugin/branch/master/graph/badge.svg
 [cover-url]: https://codecov.io/gh/webpack-contrib/mini-css-extract-plugin
-[chat]: https://badges.gitter.im/webpack/webpack.svg
-[chat-url]: https://gitter.im/webpack/webpack
+[discussion]: https://img.shields.io/github/discussions/webpack/webpack
+[discussion-url]: https://github.com/webpack/webpack/discussions
 [size]: https://packagephobia.now.sh/badge?p=mini-css-extract-plugin
 [size-url]: https://packagephobia.now.sh/result?p=mini-css-extract-plugin

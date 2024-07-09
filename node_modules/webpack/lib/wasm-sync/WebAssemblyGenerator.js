@@ -25,14 +25,22 @@ const WebAssemblyExportImportedDependency = require("../dependencies/WebAssembly
 /** @typedef {import("../RuntimeTemplate")} RuntimeTemplate */
 /** @typedef {import("../util/runtime").RuntimeSpec} RuntimeSpec */
 /** @typedef {import("./WebAssemblyUtils").UsedWasmDependency} UsedWasmDependency */
+/** @typedef {import("@webassemblyjs/ast").Instruction} Instruction */
+/** @typedef {import("@webassemblyjs/ast").ModuleImport} ModuleImport */
+/** @typedef {import("@webassemblyjs/ast").ModuleExport} ModuleExport */
+/** @typedef {import("@webassemblyjs/ast").Global} Global */
+/**
+ * @template T
+ * @typedef {import("@webassemblyjs/ast").NodePath<T>} NodePath
+ */
 
 /**
- * @typedef {(ArrayBuffer) => ArrayBuffer} ArrayBufferTransform
+ * @typedef {(buf: ArrayBuffer) => ArrayBuffer} ArrayBufferTransform
  */
 
 /**
  * @template T
- * @param {Function[]} fns transforms
+ * @param {((prev: ArrayBuffer) => ArrayBuffer)[]} fns transforms
  * @returns {Function} composed transform
  */
 const compose = (...fns) => {
@@ -47,7 +55,8 @@ const compose = (...fns) => {
 /**
  * Removes the start instruction
  *
- * @param {Object} state unused state
+ * @param {object} state state
+ * @param {object} state.ast Module's ast
  * @returns {ArrayBufferTransform} transform
  */
 const removeStartFunc = state => bin => {
@@ -61,10 +70,11 @@ const removeStartFunc = state => bin => {
 /**
  * Get imported globals
  *
- * @param {Object} ast Module's AST
- * @returns {Array<t.ModuleImport>} - nodes
+ * @param {object} ast Module's AST
+ * @returns {t.ModuleImport[]} - nodes
  */
 const getImportedGlobals = ast => {
+	/** @type {t.ModuleImport[]} */
 	const importedGlobals = [];
 
 	t.traverse(ast, {
@@ -81,8 +91,8 @@ const getImportedGlobals = ast => {
 /**
  * Get the count for imported func
  *
- * @param {Object} ast Module's AST
- * @returns {Number} - count
+ * @param {object} ast Module's AST
+ * @returns {number} - count
  */
 const getCountImportedFunc = ast => {
 	let count = 0;
@@ -101,7 +111,7 @@ const getCountImportedFunc = ast => {
 /**
  * Get next type index
  *
- * @param {Object} ast Module's AST
+ * @param {object} ast Module's AST
  * @returns {t.Index} - index
  */
 const getNextTypeIndex = ast => {
@@ -117,12 +127,12 @@ const getNextTypeIndex = ast => {
 /**
  * Get next func index
  *
- * The Func section metadata provide informations for implemented funcs
+ * The Func section metadata provide information for implemented funcs
  * in order to have the correct index we shift the index by number of external
  * functions.
  *
- * @param {Object} ast Module's AST
- * @param {Number} countImportedFunc number of imported funcs
+ * @param {object} ast Module's AST
+ * @param {number} countImportedFunc number of imported funcs
  * @returns {t.Index} - index
  */
 const getNextFuncIndex = (ast, countImportedFunc) => {
@@ -168,17 +178,20 @@ const createDefaultInitForGlobal = globalType => {
  *
  * Note that globals will become mutable.
  *
- * @param {Object} state unused state
+ * @param {object} state transformation state
+ * @param {object} state.ast Module's ast
+ * @param {t.Instruction[]} state.additionalInitCode list of addition instructions for the init function
  * @returns {ArrayBufferTransform} transform
  */
 const rewriteImportedGlobals = state => bin => {
 	const additionalInitCode = state.additionalInitCode;
+	/** @type {Array<t.Global>} */
 	const newGlobals = [];
 
 	bin = editWithAST(state.ast, bin, {
 		ModuleImport(path) {
 			if (t.isGlobalType(path.node.descr)) {
-				const globalType = path.node.descr;
+				const globalType = /** @type {TODO} */ (path.node.descr);
 
 				globalType.mutability = "var";
 
@@ -195,6 +208,9 @@ const rewriteImportedGlobals = state => bin => {
 
 		// in order to preserve non-imported global's order we need to re-inject
 		// those as well
+		/**
+		 * @param {NodePath<Global>} path path
+		 */
 		Global(path) {
 			const { node } = path;
 			const [init] = node.init;
@@ -232,8 +248,8 @@ const rewriteImportedGlobals = state => bin => {
 
 /**
  * Rewrite the export names
- * @param {Object} state state
- * @param {Object} state.ast Module's ast
+ * @param {object} state state
+ * @param {object} state.ast Module's ast
  * @param {Module} state.module Module
  * @param {ModuleGraph} state.moduleGraph module graph
  * @param {Set<string>} state.externalExports Module
@@ -244,6 +260,9 @@ const rewriteExportNames =
 	({ ast, moduleGraph, module, externalExports, runtime }) =>
 	bin => {
 		return editWithAST(ast, bin, {
+			/**
+			 * @param {NodePath<ModuleExport>} path path
+			 */
 			ModuleExport(path) {
 				const isExternal = externalExports.has(path.node.name);
 				if (isExternal) {
@@ -257,15 +276,15 @@ const rewriteExportNames =
 					path.remove();
 					return;
 				}
-				path.node.name = usedName;
+				path.node.name = /** @type {string} */ (usedName);
 			}
 		});
 	};
 
 /**
  * Mangle import names and modules
- * @param {Object} state state
- * @param {Object} state.ast Module's ast
+ * @param {object} state state
+ * @param {object} state.ast Module's ast
  * @param {Map<string, UsedWasmDependency>} state.usedDependencyMap mappings to mangle names
  * @returns {ArrayBufferTransform} transform
  */
@@ -273,6 +292,9 @@ const rewriteImports =
 	({ ast, usedDependencyMap }) =>
 	bin => {
 		return editWithAST(ast, bin, {
+			/**
+			 * @param {NodePath<ModuleImport>} path path
+			 */
 			ModuleImport(path) {
 				const result = usedDependencyMap.get(
 					path.node.module + ":" + path.node.name
@@ -291,8 +313,8 @@ const rewriteImports =
  *
  * The init function fills the globals given input arguments.
  *
- * @param {Object} state transformation state
- * @param {Object} state.ast Module's ast
+ * @param {object} state transformation state
+ * @param {object} state.ast Module's ast
  * @param {t.Identifier} state.initFuncId identifier of the init function
  * @param {t.Index} state.startAtFuncOffset index of the start function
  * @param {t.ModuleImport[]} state.importedGlobals list of imported globals
@@ -318,9 +340,13 @@ const addInitFunction =
 				`${importedGlobal.module}.${importedGlobal.name}`
 			);
 
-			return t.funcParam(importedGlobal.descr.valtype, id);
+			return t.funcParam(
+				/** @type {string} */ (importedGlobal.descr.valtype),
+				id
+			);
 		});
 
+		/** @type {Instruction[]} */
 		const funcBody = [];
 		importedGlobals.forEach((importedGlobal, index) => {
 			const args = [t.indexLiteral(index)];
@@ -344,6 +370,7 @@ const addInitFunction =
 
 		funcBody.push(t.instruction("end"));
 
+		/** @type {string[]} */
 		const funcResults = [];
 
 		// Code section
@@ -369,7 +396,7 @@ const addInitFunction =
  * Extract mangle mappings from module
  * @param {ModuleGraph} moduleGraph module graph
  * @param {Module} module current module
- * @param {boolean} mangle mangle imports
+ * @param {boolean | undefined} mangle mangle imports
  * @returns {Map<string, UsedWasmDependency>} mappings to mangled names
  */
 const getUsedDependencyMap = (moduleGraph, module, mangle) => {
@@ -390,7 +417,15 @@ const getUsedDependencyMap = (moduleGraph, module, mangle) => {
 
 const TYPES = new Set(["webassembly"]);
 
+/**
+ * @typedef {object} WebAssemblyGeneratorOptions
+ * @property {boolean} [mangleImports] mangle imports
+ */
+
 class WebAssemblyGenerator extends Generator {
+	/**
+	 * @param {WebAssemblyGeneratorOptions} options options
+	 */
 	constructor(options) {
 		super();
 		this.options = options;
@@ -423,7 +458,7 @@ class WebAssemblyGenerator extends Generator {
 	 * @returns {Source} generated code
 	 */
 	generate(module, { moduleGraph, runtime }) {
-		const bin = module.originalSource().source();
+		const bin = /** @type {Source} */ (module.originalSource()).source();
 
 		const initFuncId = t.identifier("");
 

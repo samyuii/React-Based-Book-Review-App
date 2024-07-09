@@ -11,7 +11,8 @@ const WebAssemblyImportDependency = require("../dependencies/WebAssemblyImportDe
 /** @typedef {import("../Module")} Module */
 /** @typedef {import("../ModuleGraph")} ModuleGraph */
 
-/** @typedef {Object} UsedWasmDependency
+/**
+ * @typedef {object} UsedWasmDependency
  * @property {WebAssemblyImportDependency} dependency the dependency
  * @property {string} name the export name
  * @property {string} module the module name
@@ -22,7 +23,7 @@ const MANGLED_MODULE = "a";
 /**
  * @param {ModuleGraph} moduleGraph the module graph
  * @param {Module} module the module
- * @param {boolean} mangle mangle module and export names
+ * @param {boolean | undefined} mangle mangle module and export names
  * @returns {UsedWasmDependency[]} used dependencies and (mangled) name
  */
 const getUsedDependencies = (moduleGraph, module, mangle) => {

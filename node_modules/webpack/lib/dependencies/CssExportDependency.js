@@ -13,6 +13,8 @@ const NullDependency = require("./NullDependency");
 /** @typedef {import("../Dependency").ExportsSpec} ExportsSpec */
 /** @typedef {import("../DependencyTemplate").CssDependencyTemplateContext} DependencyTemplateContext */
 /** @typedef {import("../ModuleGraph")} ModuleGraph */
+/** @typedef {import("../serialization/ObjectMiddleware").ObjectDeserializerContext} ObjectDeserializerContext */
+/** @typedef {import("../serialization/ObjectMiddleware").ObjectSerializerContext} ObjectSerializerContext */
 
 class CssExportDependency extends NullDependency {
 	/**
@@ -47,6 +49,9 @@ class CssExportDependency extends NullDependency {
 		};
 	}
 
+	/**
+	 * @param {ObjectSerializerContext} context context
+	 */
 	serialize(context) {
 		const { write } = context;
 		write(this.name);
@@ -54,6 +59,9 @@ class CssExportDependency extends NullDependency {
 		super.serialize(context);
 	}
 
+	/**
+	 * @param {ObjectDeserializerContext} context context
+	 */
 	deserialize(context) {
 		const { read } = context;
 		this.name = read();
@@ -71,9 +79,9 @@ CssExportDependency.Template = class CssExportDependencyTemplate extends (
 	 * @param {DependencyTemplateContext} templateContext the context object
 	 * @returns {void}
 	 */
-	apply(dependency, source, { cssExports }) {
+	apply(dependency, source, { cssExportsData }) {
 		const dep = /** @type {CssExportDependency} */ (dependency);
-		cssExports.set(dep.name, dep.value);
+		cssExportsData.exports.set(dep.name, dep.value);
 	}
 };
 

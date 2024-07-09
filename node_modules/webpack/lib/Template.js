@@ -6,6 +6,8 @@
 "use strict";
 
 const { ConcatSource, PrefixSource } = require("webpack-sources");
+const { WEBPACK_MODULE_TYPE_RUNTIME } = require("./ModuleTypeConstants");
+const RuntimeGlobals = require("./RuntimeGlobals");
 
 /** @typedef {import("webpack-sources").Source} Source */
 /** @typedef {import("../declarations/WebpackOptions").Output} OutputOptions */
@@ -39,7 +41,7 @@ const PATH_NAME_NORMALIZE_REPLACE_REGEX = /[^a-zA-Z0-9_!§$()=\-^°]+/g;
 const MATCH_PADDED_HYPHENS_REPLACE_REGEX = /^-|-$/g;
 
 /**
- * @typedef {Object} RenderManifestOptions
+ * @typedef {object} RenderManifestOptions
  * @property {Chunk} chunk the chunk used to render
  * @property {string} hash
  * @property {string} fullHash
@@ -55,7 +57,7 @@ const MATCH_PADDED_HYPHENS_REPLACE_REGEX = /^-|-$/g;
 /** @typedef {RenderManifestEntryTemplated | RenderManifestEntryStatic} RenderManifestEntry */
 
 /**
- * @typedef {Object} RenderManifestEntryTemplated
+ * @typedef {object} RenderManifestEntryTemplated
  * @property {function(): Source} render
  * @property {string | function(PathData, AssetInfo=): string} filenameTemplate
  * @property {PathData=} pathOptions
@@ -66,7 +68,7 @@ const MATCH_PADDED_HYPHENS_REPLACE_REGEX = /^-|-$/g;
  */
 
 /**
- * @typedef {Object} RenderManifestEntryStatic
+ * @typedef {object} RenderManifestEntryStatic
  * @property {function(): Source} render
  * @property {string} filename
  * @property {AssetInfo} info
@@ -76,7 +78,7 @@ const MATCH_PADDED_HYPHENS_REPLACE_REGEX = /^-|-$/g;
  */
 
 /**
- * @typedef {Object} HasId
+ * @typedef {object} HasId
  * @property {number | string} id
  */
 
@@ -250,7 +252,7 @@ class Template {
 	}
 
 	/**
-	 * @typedef {Object} WithId
+	 * @typedef {object} WithId
 	 * @property {string|number} id
 	 */
 
@@ -288,7 +290,7 @@ class Template {
 	 * @param {Module[]} modules modules to render (should be ordered by identifier)
 	 * @param {function(Module): Source} renderModule function to render a module
 	 * @param {string=} prefix applying prefix strings
-	 * @returns {Source} rendered chunk modules in a Source object
+	 * @returns {Source | null} rendered chunk modules in a Source object or null if no modules
 	 */
 	static renderChunkModules(renderContext, modules, renderModule, prefix = "") {
 		const { chunkGraph } = renderContext;
@@ -362,7 +364,7 @@ class Template {
 				runtimeSource = codeGenerationResults.getSource(
 					module,
 					renderContext.chunk.runtime,
-					"runtime"
+					WEBPACK_MODULE_TYPE_RUNTIME
 				);
 			} else {
 				const codeGenResult = module.codeGeneration({
@@ -404,7 +406,7 @@ class Template {
 		return new PrefixSource(
 			"/******/ ",
 			new ConcatSource(
-				"function(__webpack_require__) { // webpackRuntimeModules\n",
+				`function(${RuntimeGlobals.require}) { // webpackRuntimeModules\n`,
 				this.renderRuntimeModules(runtimeModules, renderContext),
 				"}\n"
 			)

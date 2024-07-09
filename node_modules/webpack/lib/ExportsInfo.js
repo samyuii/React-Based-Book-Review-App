@@ -14,6 +14,8 @@ const { forEachRuntime } = require("./util/runtime");
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./ModuleGraph")} ModuleGraph */
 /** @typedef {import("./ModuleGraphConnection")} ModuleGraphConnection */
+/** @typedef {import("./serialization/ObjectMiddleware").ObjectDeserializerContext} ObjectDeserializerContext */
+/** @typedef {import("./serialization/ObjectMiddleware").ObjectSerializerContext} ObjectSerializerContext */
 /** @typedef {import("./util/Hash")} Hash */
 
 /** @typedef {typeof UsageState.OnlyPropertiesUsed | typeof UsageState.NoInfo | typeof UsageState.Unknown | typeof UsageState.Used} RuntimeUsageStateType */
@@ -44,6 +46,9 @@ class RestoreProvidedData {
 		this.otherTerminalBinding = otherTerminalBinding;
 	}
 
+	/**
+	 * @param {ObjectSerializerContext} context context
+	 */
 	serialize({ write }) {
 		write(this.exports);
 		write(this.otherProvided);
@@ -51,6 +56,10 @@ class RestoreProvidedData {
 		write(this.otherTerminalBinding);
 	}
 
+	/**
+	 * @param {ObjectDeserializerContext} context context
+	 * @returns {RestoreProvidedData} RestoreProvidedData
+	 */
 	static deserialize({ read }) {
 		return new RestoreProvidedData(read(), read(), read(), read());
 	}
@@ -162,6 +171,10 @@ class ExportsInfo {
 		this._exportsAreOrdered = true;
 	}
 
+	/**
+	 * @param {ExportsInfo | undefined} exportsInfo exports info
+	 * @returns {boolean} result
+	 */
 	setRedirectNamedTo(exportsInfo) {
 		if (this._redirectTo === exportsInfo) return false;
 		this._redirectTo = exportsInfo;
@@ -198,9 +211,6 @@ class ExportsInfo {
 			this._redirectTo.setHasUseInfo();
 		} else {
 			this._otherExportsInfo.setHasUseInfo();
-			if (this._otherExportsInfo.canMangleUse === undefined) {
-				this._otherExportsInfo.canMangleUse = true;
-			}
 		}
 	}
 
@@ -301,7 +311,12 @@ class ExportsInfo {
 				changed = true;
 			}
 			if (targetKey) {
-				exportInfo.setTarget(targetKey, targetModule, [exportInfo.name], -1);
+				exportInfo.setTarget(
+					targetKey,
+					/** @type {ModuleGraphConnection} */ (targetModule),
+					[exportInfo.name],
+					-1
+				);
 			}
 		}
 		if (this._redirectTo !== undefined) {
@@ -331,7 +346,7 @@ class ExportsInfo {
 			if (targetKey) {
 				this._otherExportsInfo.setTarget(
 					targetKey,
-					targetModule,
+					/** @type {ModuleGraphConnection} */ (targetModule),
 					undefined,
 					priority
 				);
@@ -465,6 +480,7 @@ class ExportsInfo {
 	 * @returns {SortableSet<string> | boolean | null} set of used exports, or true (when namespace object is used), or false (when unused), or null (when unknown)
 	 */
 	getUsedExports(runtime) {
+		// eslint-disable-next-line no-constant-binary-expression
 		if (!this._redirectTo !== undefined) {
 			switch (this._otherExportsInfo.getUsed(runtime)) {
 				case UsageState.NoInfo:
@@ -513,6 +529,7 @@ class ExportsInfo {
 	 * @returns {null | true | string[]} list of exports when known
 	 */
 	getProvidedExports() {
+		// eslint-disable-next-line no-constant-binary-expression
 		if (!this._redirectTo !== undefined) {
 			switch (this._otherExportsInfo.provided) {
 				case undefined:
@@ -656,7 +673,7 @@ class ExportsInfo {
 	}
 
 	/**
-	 * @param {string | string[]} name the export name
+	 * @param {string | string[] | undefined} name the export name
 	 * @param {RuntimeSpec} runtime check usage for this runtime only
 	 * @returns {string | string[] | false} the used name
 	 */
@@ -752,6 +769,9 @@ class ExportsInfo {
 		);
 	}
 
+	/**
+	 * @param {{ otherProvided: any, otherCanMangleProvide: any, otherTerminalBinding: any, exports: any }} data data
+	 */
 	restoreProvided({
 		otherProvided,
 		otherCanMangleProvide,
@@ -790,16 +810,28 @@ class ExportInfo {
 	constructor(name, initFrom) {
 		/** @type {string} */
 		this.name = name;
-		/** @private @type {string | null} */
+		/**
+		 * @private
+		 * @type {string | null}
+		 */
 		this._usedName = initFrom ? initFrom._usedName : null;
-		/** @private @type {UsageStateType} */
+		/**
+		 * @private
+		 * @type {UsageStateType}
+		 */
 		this._globalUsed = initFrom ? initFrom._globalUsed : undefined;
-		/** @private @type {Map<string, RuntimeUsageStateType>} */
+		/**
+		 * @private
+		 * @type {Map<string, RuntimeUsageStateType>}
+		 */
 		this._usedInRuntime =
 			initFrom && initFrom._usedInRuntime
 				? new Map(initFrom._usedInRuntime)
 				: undefined;
-		/** @private @type {boolean} */
+		/**
+		 * @private
+		 * @type {boolean}
+		 */
 		this._hasUseInRuntimeInfo = initFrom
 			? initFrom._hasUseInRuntimeInfo
 			: false;
@@ -1223,7 +1255,7 @@ class ExportInfo {
 	/**
 	 * @param {ModuleGraph} moduleGraph the module graph
 	 * @param {function(Module): boolean} validTargetModuleFilter a valid target module
-	 * @param {Set<ExportInfo> | undefined} alreadyVisited set of already visited export info to avoid circular references
+	 * @param {Set<ExportInfo>} alreadyVisited set of already visited export info to avoid circular references
 	 * @returns {{ module: Module, export: string[] | undefined } | undefined | false} the target, undefined when there is no target, false when no target is valid
 	 */
 	_findTarget(moduleGraph, validTargetModuleFilter, alreadyVisited) {
@@ -1347,7 +1379,11 @@ class ExportInfo {
 			if (t === null) return undefined;
 			if (t.module !== target.module) return undefined;
 			if (!t.export !== !target.export) return undefined;
-			if (target.export && !equals(t.export, target.export)) return undefined;
+			if (
+				target.export &&
+				!equals(/** @type {ArrayLike<string>} */ (t.export), target.export)
+			)
+				return undefined;
 			result = values.next();
 		}
 		return target;

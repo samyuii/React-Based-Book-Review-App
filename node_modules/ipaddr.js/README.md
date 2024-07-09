@@ -1,4 +1,6 @@
-# ipaddr.js — an IPv6 and IPv4 address manipulation library [![Build Status](https://travis-ci.org/whitequark/ipaddr.js.svg)](https://travis-ci.org/whitequark/ipaddr.js)
+# ipaddr.js — an IPv6 and IPv4 address manipulation library
+
+[![Build Status](https://github.com/whitequark/ipaddr.js/workflows/CI%20Tests/badge.svg)](https://github.com/whitequark/ipaddr.js/actions?query=workflow%3A%22CI+Tests%22)
 
 ipaddr.js is a small (1.9K minified and gzipped) library for manipulating
 IP addresses in JavaScript environments. It runs on both CommonJS runtimes
@@ -37,11 +39,15 @@ The API consists of several global methods and two classes: ipaddr.IPv6 and ipad
 
 ### Global methods
 
-There are three global methods defined: `ipaddr.isValid`, `ipaddr.parse` and
-`ipaddr.process`. All of them receive a string as a single parameter.
+There are four global methods defined: `ipaddr.isValid`, `ipaddr.isValidCIDR`, 
+`ipaddr.parse`, and `ipaddr.process`. All of them receive a string as a single
+parameter.
 
 The `ipaddr.isValid` method returns `true` if the address is a valid IPv4 or
 IPv6 address, and `false` otherwise. It does not throw any exceptions.
+
+The `ipaddr.isValidCIDR` method returns `true` if the address is a valid IPv4 or
+IPv6 address in CIDR notation, and `false` otherwise. It does not throw any exceptions.
 
 The `ipaddr.parse` method returns an object representing the IP address,
 or throws an `Error` if the passed string is not a valid representation of an
@@ -122,8 +128,8 @@ The `ipaddr.IPv4` and `ipaddr.IPv6` objects have some methods defined, too. All 
 
 `ipaddr.IPvX.isValid(string)` uses the same format for parsing as the POSIX `inet_ntoa` function, which accepts unusual formats like `0xc0.168.1.1` or `0x10000000`. The function `ipaddr.IPv4.isValidFourPartDecimal(string)` validates the IPv4 address and also ensures that it is written in four-part decimal format.
 
-[IPv6 ranges]: https://github.com/whitequark/ipaddr.js/blob/master/src/ipaddr.coffee#L186
-[IPv4 ranges]: https://github.com/whitequark/ipaddr.js/blob/master/src/ipaddr.coffee#L71
+[IPv6 ranges]: https://github.com/whitequark/ipaddr.js/blob/master/lib/ipaddr.js#L530
+[IPv4 ranges]: https://github.com/whitequark/ipaddr.js/blob/master/lib/ipaddr.js#L182
 
 #### IPv6 properties
 

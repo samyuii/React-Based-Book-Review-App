@@ -44,21 +44,30 @@ Technically any value can be used.
 */
 
 /**
- * @typedef {Object} ObjectSerializerContext
+ * @typedef {object} ObjectSerializerContext
  * @property {function(any): void} write
+ * @property {(function(any): void)=} writeLazy
+ * @property {(function(any, object=): (() => Promise<any> | any))=} writeSeparate
+ * @property {function(any): void} setCircularReference
  */
 
 /**
- * @typedef {Object} ObjectDeserializerContext
+ * @typedef {object} ObjectDeserializerContext
  * @property {function(): any} read
+ * @property {function(any): void} setCircularReference
  */
 
 /**
- * @typedef {Object} ObjectSerializer
+ * @typedef {object} ObjectSerializer
  * @property {function(any, ObjectSerializerContext): void} serialize
  * @property {function(ObjectDeserializerContext): any} deserialize
  */
 
+/**
+ * @template T
+ * @param {Set<T>} set set
+ * @param {number} size count of items to keep
+ */
 const setSetSize = (set, size) => {
 	let i = 0;
 	for (const item of set) {
@@ -68,6 +77,11 @@ const setSetSize = (set, size) => {
 	}
 };
 
+/**
+ * @template K, X
+ * @param {Map<K, X>} map map
+ * @param {number} size count of items to keep
+ */
 const setMapSize = (map, size) => {
 	let i = 0;
 	for (const item of map.keys()) {
@@ -95,9 +109,12 @@ const ESCAPE_UNDEFINED = false;
 
 const CURRENT_VERSION = 2;
 
+/** @type {Map<Constructor, { request?: string, name?: string | number | null, serializer?: ObjectSerializer }>} */
 const serializers = new Map();
+/** @type {Map<string | number, ObjectSerializer>} */
 const serializerInversed = new Map();
 
+/** @type {Set<string>} */
 const loadedRequests = new Set();
 
 const NOT_SERIALIZABLE = {};
@@ -121,6 +138,7 @@ jsTypes.set(TypeError, new ErrorObjectSerializer(TypeError));
 // real Object and Array types to. These types may occur in the wild too, e. g. when
 // using Structured Clone in postMessage.
 if (exports.constructor !== Object) {
+	// eslint-disable-next-line jsdoc/check-types
 	const Obj = /** @type {typeof Object} */ (exports.constructor);
 	const Fn = /** @type {typeof Function} */ (Obj.constructor);
 	for (const [type, config] of Array.from(jsTypes)) {
@@ -143,7 +161,10 @@ if (exports.constructor !== Object) {
 }
 
 for (const { request, name, serializer } of serializers.values()) {
-	serializerInversed.set(`${request}/${name}`, serializer);
+	serializerInversed.set(
+		`${request}/${name}`,
+		/** @type {ObjectSerializer} */ (serializer)
+	);
 }
 
 /** @type {Map<RegExp, (request: string) => boolean>} */
@@ -176,7 +197,7 @@ class ObjectMiddleware extends SerializerMiddleware {
 	/**
 	 * @param {Constructor} Constructor the constructor
 	 * @param {string} request the request which will be required when deserializing
-	 * @param {string} name the name to make multiple serializer unique when sharing a request
+	 * @param {string | null} name the name to make multiple serializer unique when sharing a request
 	 * @param {ObjectSerializer} serializer the serializer
 	 * @returns {void}
 	 */
@@ -240,6 +261,11 @@ class ObjectMiddleware extends SerializerMiddleware {
 		return config;
 	}
 
+	/**
+	 * @param {string} request request
+	 * @param {TODO} name name
+	 * @returns {ObjectSerializer} serializer
+	 */
 	static getDeserializerFor(request, name) {
 		const key = request + "/" + name;
 		const serializer = serializerInversed.get(key);
@@ -251,6 +277,11 @@ class ObjectMiddleware extends SerializerMiddleware {
 		return serializer;
 	}
 
+	/**
+	 * @param {string} request request
+	 * @param {TODO} name name
+	 * @returns {ObjectSerializer} serializer
+	 */
 	static _getDeserializerForWithoutError(request, name) {
 		const key = request + "/" + name;
 		const serializer = serializerInversed.get(key);
@@ -259,7 +290,7 @@ class ObjectMiddleware extends SerializerMiddleware {
 
 	/**
 	 * @param {DeserializedType} data data
-	 * @param {Object} context context object
+	 * @param {object} context context object
 	 * @returns {SerializedType|Promise<SerializedType>} serialized data
 	 */
 	serialize(data, context) {
@@ -371,6 +402,9 @@ class ObjectMiddleware extends SerializerMiddleware {
 						return `Object [null prototype] { ${Object.keys(item).join(
 							", "
 						)} }`;
+					}
+					if (typeof item === "bigint") {
+						return `BigInt ${item}n`;
 					}
 					try {
 						return `${item}`;
@@ -560,7 +594,7 @@ class ObjectMiddleware extends SerializerMiddleware {
 
 	/**
 	 * @param {SerializedType} data data
-	 * @param {Object} context context object
+	 * @param {object} context context object
 	 * @returns {DeserializedType|Promise<DeserializedType>} deserialized data
 	 */
 	deserialize(data, context) {
@@ -687,10 +721,10 @@ class ObjectMiddleware extends SerializerMiddleware {
 						const name = !serializerEntry
 							? "unknown"
 							: !serializerEntry[1].request
-							? serializerEntry[0].name
-							: serializerEntry[1].name
-							? `${serializerEntry[1].request} ${serializerEntry[1].name}`
-							: serializerEntry[1].request;
+								? serializerEntry[0].name
+								: serializerEntry[1].name
+									? `${serializerEntry[1].request} ${serializerEntry[1].name}`
+									: serializerEntry[1].request;
 						err.message += `\n(during deserialization of ${name})`;
 						throw err;
 					}
