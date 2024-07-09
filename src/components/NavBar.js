@@ -22,7 +22,7 @@ function Logo() {
       <span role="img" className="text-2xl">
         📚
       </span>
-      <h1 className="ml-2 text-xl font-bold">BookHaven</h1>
+      <h1 className="ml-2 text-xl font-bold">BookHive</h1>
     </div>
   );
 }
