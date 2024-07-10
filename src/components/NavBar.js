@@ -1,11 +1,21 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function NavBar() {
+  const location = useLocation();
+
+  const handleHomeClick = (e) => {
+    if (location.pathname === "/") {
+      window.location.reload();
+    }
+  };
+
   return (
     <nav className="flex items-center justify-between p-4 bg-blue-600 text-white shadow-md">
-      <Logo />
+      <Link to="/" onClick={handleHomeClick}>
+        <Logo />
+      </Link>
       <div className="flex space-x-4">
-        <Link to="/" className="nav-link">
+        <Link to="/" className="nav-link" onClick={handleHomeClick}>
           Home
         </Link>
         <Link to="/my-book-list" className="nav-link">
